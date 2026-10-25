@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ТВ-ДРОП</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1020; font-family: system-ui, sans-serif; }
+canvas { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; z-index: 1; }
+#ui { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; padding: calc(15px + env(safe-area-inset-top)) 20px 20px; display: flex; justify-content: space-between; align-items: flex-start; font-weight: 800; z-index: 5; }
+.box { background: rgba(10,20,40,.75); border-radius: 16px; padding: 10px 20px; color: #fff; border: 1px solid rgba(255,255,255,.15); text-align: center; backdrop-filter: blur(5px); }
+#score-box { font-size: clamp(24px, 5vh, 40px); line-height: 1.1; }
+#score-box small { display: block; font-size: clamp(10px, 2vh, 14px); opacity: .7; margin-top: 2px; letter-spacing: 1px; }
+#timer-box { font-size: clamp(24px, 5vh, 40px); line-height: 1.1; font-variant-numeric: tabular-nums; text-align: right; }
+#timer-box small { display: block; font-size: clamp(10px, 2vh, 14px); opacity: .7; margin-top: 2px; letter-spacing: 1px; }
+#record-box { font-size: clamp(12px, 2vh, 16px); color: #ffe45e; margin-top: 8px; font-weight: 700; border-top: 1px solid rgba(255,255,255,.2); padding-top: 6px; }
+#combo { position: absolute; left: 50%; top: 20%; transform: translate(-50%,-50%) scale(1); font-size: clamp(40px, 8vh, 80px); font-weight: 900; color: #ffe45e; text-shadow: 0 4px 0 #b07a00, 0 0 30px rgba(255,220,80,.8); pointer-events: none; opacity: 0; z-index: 6; transition: .15s; }
+#overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #fff; background: rgba(6,12,26,.92); backdrop-filter: blur(8px); padding: 20px; z-index: 10; transition: .3s; }
+#overlay h1 { font-size: clamp(36px, 8vh, 60px); margin-bottom: 20px; color: #8fd4ff; text-shadow: 0 0 20px rgba(80,160,255,.5); }
+#overlay p { font-size: clamp(14px, 2.5vh, 18px); line-height: 1.5; opacity: .9; font-weight: 600; max-width: 90vw; margin-bottom: 20px; }
+.diff-container { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 350px; margin-bottom: 25px; }
+.diff-btn { display: flex; flex-direction: column; align-items: center; text-decoration: none; padding: 15px; border-radius: 16px; border: 3px solid transparent; color: #fff; font-weight: 800; font-size: clamp(16px, 2.5vh, 20px); cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,.3); transition: .1s; pointer-events: auto; outline: none; }
+.diff-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.3); }
+.diff-btn small { display: block; font-size: clamp(11px, 1.8vh, 14px); font-weight: 600; opacity: .85; margin-top: 4px; }
+.diff-btn.active { border-color: #fff; box-shadow: 0 0 20px rgba(255,255,255,.8), 0 6px 0 rgba(0,0,0,.3); }
+.btn-easy { background: linear-gradient(180deg,#4caf50,#2e7d32); }
+.btn-normal { background: linear-gradient(180deg,#2196f3,#1565c0); }
+.btn-hard { background: linear-gradient(180deg,#f44336,#c62828); }
+.btn-endless { background: linear-gradient(180deg,#9c27b0,#6a1b9a); }
+.btn-play { display: inline-block; text-align: center; text-decoration: none; font-size: clamp(20px, 3vh, 28px); font-weight: 800; padding: 18px 50px; border-radius: 99px; background: linear-gradient(180deg,#57c8ff,#2b7fe0); box-shadow: 0 8px 0 #1a4f96, 0 15px 30px rgba(60,150,255,.4); cursor: pointer; border: none; color: #fff; font-family: inherit; pointer-events: auto; outline: none; }
+.btn-play:active { transform: translateY(6px); box-shadow: 0 2px 0 #1a4f96; }
+.btn-menu { display: inline-block; text-align: center; text-decoration: none; font-size: clamp(18px, 2.5vh, 24px); font-weight: 800; padding: 15px 40px; border-radius: 99px; background: linear-gradient(180deg,#ff9800,#e65100); box-shadow: 0 6px 0 #bf360c, 0 10px 20px rgba(255,100,0,.3); cursor: pointer; border: none; color: #fff; font-family: inherit; pointer-events: auto; outline: none; }
+.btn-menu:active { transform: translateY(4px); box-shadow: 0 2px 0 #bf360c; }
+#achieve-screen { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; flex-direction: column; align-items: center; background: rgba(6,12,26,.95); z-index: 15; padding: calc(20px + env(safe-area-inset-top)) 20px 20px; }
+#achieve-screen h1 { color: #ffe45e; margin-bottom: 15px; font-size: clamp(28px, 6vh, 40px); text-shadow: 0 0 20px rgba(255,200,0,.5); }
+.ach-list { width: 100%; max-width: 450px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
+.ach-item { display: flex; align-items: center; background: rgba(255,255,255,.08); border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.1); text-align: left; }
+.ach-item.unlocked { background: rgba(76,175,80,.15); border-color: rgba(76,175,80,.5); }
+.ach-icon { font-size: 28px; margin-right: 15px; opacity: .4; }
+.ach-item.unlocked .ach-icon { opacity: 1; filter: drop-shadow(0 0 5px rgba(255,255,255,.5)); }
+.ach-text { flex: 1; }
+.ach-title { font-weight: 800; color: #fff; font-size: 16px; margin-bottom: 2px; }
+.ach-desc { font-size: 12px; color: #aaa; }
+.ach-item.unlocked .ach-title { color: #8fd4ff; }
+.ach-item.unlocked .ach-desc { color: #ddd; }
+.btn-back { margin-top: 10px; padding: 12px 30px; font-size: 18px; font-weight: 800; border-radius: 99px; background: #ff5252; color: #fff; text-decoration: none; box-shadow: 0 4px 0 #b71c1c; border: none; cursor: pointer; outline: none; pointer-events: auto; }
+.btn-back:active { transform: translateY(4px); box-shadow: 0 0 0 #b71c1c; }
+#toast { position: absolute; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: linear-gradient(180deg,#ffe45e,#ffb300); color: #000; padding: 12px 24px; border-radius: 20px; font-weight: 800; box-shadow: 0 10px 25px rgba(0,0,0,.5); z-index: 20; display: flex; align-items: center; gap: 10px; transition: .4s; pointer-events: none; }
+#toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div class="box" id="score-box"><span id="score-val">0</span><small>ОЧКИ</small></div>
+  <div class="box" id="timer-box"><span id="timer-val">01:00</span><small>ВРЕМЯ</small><div id="record-box">Рекорд: 00:00</div></div>
+</div>
+<div id="combo"></div>
+<div id="toast"></div>
+<div id="overlay">
+  <div id="menu-screen" style="display:flex; flex-direction:column; align-items:center; width: 100%;">
+    <h1>ТВ-ДРОП</h1>
+    <p>Води телевизор пальцем и роняй его на шарики!<br>Осторожно: если счет уйдет в минус, ты проиграешь!</p>
+    <div class="diff-container">
+      <a href="javascript:selectDiff('easy')" class="diff-btn btn-easy active" data-diff="easy">ЛЕГКО<small>1 мин / x1 очки</small></a>
+      <a href="javascript:selectDiff('normal')" class="diff-btn btn-normal" data-diff="normal">СРЕДНЕ<small>2 мин / x2 очки</small></a>
+      <a href="javascript:selectDiff('hard')" class="diff-btn btn-hard" data-diff="hard">СЛОЖНО<small>3 мин / x3 очки</small></a>
+      <a href="javascript:selectDiff('endless')" class="diff-btn btn-endless" data-diff="endless">БЕСКОНЕЧНО<small>Играй на время (Рекорд)</small></a>
+    </div>
+    <div style="display: flex; gap: 15px; align-items: center;">
+      <a href="javascript:startGame()" class="btn-play">ИГРАТЬ</a>
+      <a href="javascript:openAchievements()" class="btn-play" style="padding: 18px 25px; background: linear-gradient(180deg,#ffd54f,#ffb300); box-shadow: 0 8px 0 #c67c00;">🏆</a>
+    </div>
+  </div>
+  <div id="gameover-screen" style="display:none; flex-direction:column; align-items:center;">
+    <h1>ИГРА ОКОНЧЕНА</h1>
+    <div style="font-size: clamp(24px, 4vh, 36px); margin-bottom: 10px; font-weight: 800;">Счет: <span id="final-score-text" style="color: #ffe45e;">0</span></div>
+    <div style="font-size: clamp(18px, 3vh, 24px); margin-bottom: 30px; font-weight: 600;">Время: <span id="final-time-text">00:00</span></div>
+    <div style="display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 300px;">
+      <a href="javascript:restartGame()" class="btn-play">ЕЩЕ РАЗ</a>
+      <a href="javascript:backToMenu()" class="btn-menu">В МЕНЮ</a>
+    </div>
+  </div>
+</div>
+<div id="achieve-screen">
+  <h1>ДОСТИЖЕНИЯ</h1>
+  <div class="ach-list" id="ach-list"></div>
+  <a href="javascript:closeAchievements()" class="btn-back">НАЗАД</a>
+</div>
+<script>
+var achData = [
+  { id: 'score_100', title: 'Первый шаг', desc: 'Набрать 100 очков', icon: '🎈' },
+  { id: 'score_1000', title: 'Меткий глаз', desc: 'Набрать 1000 очков', icon: '🏆' },
+  { id: 'score_5000', title: 'Король вечеринки', desc: 'Набрать 5000 очков', icon: '👑' },
+  { id: 'win_easy', title: 'Легкая прогулка', desc: 'Дожить до конца на ЛЕГКО', icon: '🟢' },
+  { id: 'win_normal', title: 'Стабильность', desc: 'Дожить до конца на СРЕДНЕ', icon: '🔵' },
+  { id: 'win_hard', title: 'Хардкор', desc: 'Дожить до конца на СЛОЖНО', icon: '🔴' },
+  { id: 'combo_10', title: 'Комбо-мастер', desc: 'Собрать комбо x10', icon: '🔥' },
+  { id: 'time_30', title: 'Выживший', desc: 'Продержаться 30 сек в БЕСКОНЕЧНО', icon: '⏱️' },
+  { id: 'time_60', title: 'Долгожитель', desc: 'Продержаться 60 сек в БЕСКОНЕЧНО', icon: '🕰️' },
+  { id: 'time_120', title: 'Бессмертный', desc: 'Продержаться 120 сек в БЕСКОНЕЧНО', icon: '⏳' },
+  { id: 'magnet_3', title: 'Магнитная буря', desc: 'Собрать 3 магнита за игру', icon: '🧲' },
+  { id: 'gold_10', title: 'Золотая лихорадка', desc: 'Лопнуть 10 золотых шаров за игру', icon: '⭐' },
+  { id: 'bomb_hit', title: 'Ну вот...', desc: 'Взорваться на бомбе', icon: '💣' },
+  { id: 'minus_death', title: 'Долги', desc: 'Уйти в минус', icon: '💀' },
+  { id: 'block_5', title: 'Упрямец', desc: 'Врезаться в блок 5 раз за игру', icon: '❌' }
+];
+var unlockedAch = {};
+try { unlockedAch = JSON.parse(localStorage.getItem('tvdrop_ach')) || {}; } catch(e) {}
+var gameStats = { magnets: 0, golds: 0, blocks: 0, maxCombo: 0 };
+function unlockAchievement(id) {
+  if (unlockedAch[id]) return;
+  unlockedAch[id] = true;
+  try { localStorage.setItem('tvdrop_ach', JSON.stringify(unlockedAch)); } catch(e) {}
+  var ach = achData.find(function(a) { return a.id === id; });
+  if (ach) {
+    var toast = document.getElementById('toast');
+    toast.innerHTML = '<span style="font-size: 24px;">' + ach.icon + '</span><div><div style="font-size: 12px; opacity: 0.7;">ДОСТИЖЕНИЕ ОТКРЫТО</div><div>' + ach.title + '</div></div>';
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, 3000);
+  }
+}
+function openAchievements() {
+  var list = document.getElementById('ach-list');
+  list.innerHTML = '';
+  for (var i = 0; i < achData.length; i++) {
+    var a = achData[i];
+    var isUnlocked = unlockedAch[a.id] ? true : false;
+    var div = document.createElement('div');
+    div.className = 'ach-item' + (isUnlocked ? ' unlocked' : '');
+    div.innerHTML = '<div class="ach-icon">' + a.icon + '</div><div class="ach-text"><div class="ach-title">' + a.title + '</div><div class="ach-desc">' + a.desc + '</div></div>';
+    list.appendChild(div);
+  }
+  document.getElementById('achieve-screen').style.display = 'flex';
+}
+function closeAchievements() { document.getElementById('achieve-screen').style.display = 'none'; }
+var cvs = document.getElementById('c');
+var ctx = cvs.getContext('2d');
+var W = 0, H = 0, DPR = 1;
+var TV_W = 74, TV_H = 54;
+var gameState = 'menu';
+var currentDiff = 'easy';
+var speedMult = 1, scoreMult = 1, isEndless = false, MAX_TIME = 60;
+var timePlayed = 0;
+var bestTime = 0;
+try { bestTime = parseInt(localStorage.getItem('tvdrop_best_time')) || 0; } catch(e) {}
+var tv = null, balloons = [], particles = [], items = [], texts = [], clouds = [];
+var score = 0, combo = 0, gameTime = 0, spawnTimer = 0.4, respawnTimer = 0;
+var dragging = false, targetX = 0;
+var magnetTime = 0;
+var scoreVal = document.getElementById('score-val');
+var timerVal = document.getElementById('timer-val');
+var recordBox = document.getElementById('record-box');
+var comboEl = document.getElementById('combo');
+var overlay = document.getElementById('overlay');
+var menuScreen = document.getElementById('menu-screen');
+var gameoverScreen = document.getElementById('gameover-screen');
+var finalScoreText = document.getElementById('final-score-text');
+var finalTimeText = document.getElementById('final-time-text');
+recordBox.innerText = 'Рекорд: ' + formatTime(bestTime);
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function rand(a, b) { return a + Math.random() * (b - a); }
+var TAU = Math.PI * 2;
+function formatTime(sec) {
+  var m = Math.floor(sec / 60);
+  var s = Math.floor(sec % 60);
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+var ITEMS = ['📱','⌚','🎧','💻','🖱️','⌨️','📷','🔋','💾','📀','🎮','🕹️','📺','📻','☎️','📞','🖨️','🔌','💡','🔦','🧲','📡','🛰️','🔑','🔒','🎈','🍕','🐱','🚀','👽','🧦','🌮','🍩','🦄','👑','💎','🎸','🥑','🧸','🍌','🐸','🎩','🪀','🛼','🧃','🍭','⚽','🎯','🧩','🪁','🥕','🍔','🚗','✈️','🛸','🐙','🦖','🌈','⭐','🍄','🎁','🔔','🧊','🪑'];
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  cvs.width = Math.round(W * DPR);
+  cvs.height = Math.round(H * DPR);
+  cvs.style.width = W + 'px';
+  cvs.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (tv) tv.x = Math.max(TV_W/2 + 6, Math.min(tv.x, W - TV_W/2 - 6));
+}
+window.addEventListener('resize', resize);
+function spawnTV() {
+  tv = { x: clamp(targetX || W/2, TV_W/2 + 6, W - TV_W/2 - 6), y: 86, vy: 0, dropping: false, tilt: 0 };
+}
+function makeClouds() {
+  clouds = [];
+  for (var i = 0; i < 7; i++) {
+    clouds.push({ x: rand(-60, W + 60), y: rand(60, H * 0.75), s: rand(0.5, 1.25), v: rand(5, 16) });
+  }
+}
+function spawnBalloon() {
+  var r = rand(18, 32), margin = r + 18;
+  var x = rand(margin, Math.max(margin + 1, W - margin));
+  var baseSpeed = rand(46, 84) + Math.min(gameTime * 1.6, 60);
+  var rType = Math.random();
+  var type = 'normal';
+  if (gameTime < 15) {
+    if (rType < 0.01) type = 'magnet'; 
+    else if (rType < 0.12) type = 'gold';
+    else if (rType < 0.30) type = 'bad';
+  } else {
+    if (rType < 0.025) type = 'bomb';
+    else if (rType < 0.035) type = 'magnet'; 
+    else if (rType < 0.085) type = 'block';
+    else if (rType < 0.35) type = 'bad';
+    else if (rType < 0.45) type = 'gold';
+  }
+  balloons.push({
+    x: x, baseX: x, y: H + r + 30, r: r, vy: -baseSpeed * speedMult, type: type,
+    amp: rand(8, 26), phase: rand(0, TAU), swaySpeed: rand(0.8, 1.9), hue: Math.floor(rand(0, 360)), t: 0,
+    invuln: 2.0 
+  });
+}
+function popBalloon(b) {
+  var hue = b.hue;
+  if (b.type === 'bad' || b.type === 'bomb') hue = 0;
+  if (b.type === 'gold') hue = 45;
+  if (b.type === 'magnet') hue = 190;
+  if (b.type !== 'block') {
+    for (var i = 0; i < 16; i++) {
+      var a = rand(0, TAU), sp = rand(70, 240), life = rand(0.45, 0.85);
+      particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: life, maxLife: life, size: rand(2.5, 7), hue: hue + rand(-18, 18) });
+    }
+  }
+  if (b.type === 'bomb') { unlockAchievement('bomb_hit'); endGame(); return; }
+  if (b.type === 'block') { combo = 0; gameStats.blocks++; if (gameStats.blocks >= 5) unlockAchievement('block_5'); return; }
+  var pts = 0;
+  if (b.type === 'bad') {
+    combo = 0; pts = -100;
+    texts.push({ x: b.x, y: b.y - 6, text: pts, life: 0.95, maxLife: 0.95, size: 24, color: '#ff5b5b' });
+  } else if (b.type === 'gold') {
+    combo++; pts = 100 * combo * scoreMult;
+    texts.push({ x: b.x, y: b.y - 6, text: '+' + pts, life: 0.95, maxLife: 0.95, size: 24, color: '#ffd700' });
+    gameStats.golds++;
+    if (gameStats.golds >= 10) unlockAchievement('gold_10');
+  } else if (b.type === 'magnet') {
+    magnetTime = 15; 
+    combo++; pts = 20 * combo * scoreMult;
+    texts.push({ x: b.x, y: b.y - 6, text: 'МАГНИТ 15с!', life: 1.5, maxLife: 1.5, size: 24, color: '#00ffff' });
+    gameStats.magnets++;
+    if (gameStats.magnets >= 3) unlockAchievement('magnet_3');
+  } else {
+    combo++; pts = 10 * combo * scoreMult;
+    texts.push({ x: b.x, y: b.y - 6, text: '+' + pts, life: 0.95, maxLife: 0.95, size: 18 + Math.min(combo, 6) * 3, color: '#fff6b0' });
+  }
+  if (combo > gameStats.maxCombo) { gameStats.maxCombo = combo; if (combo >= 10) unlockAchievement('combo_10'); }
+  score += pts;
+  if (score >= 100) unlockAchievement('score_100');
+  if (score >= 1000) unlockAchievement('score_1000');
+  if (score >= 5000) unlockAchievement('score_5000');
+  if (score < 0) { unlockAchievement('minus_death'); endGame(); return; }
+  items.push({
+    x: b.x, y: b.y, vx: rand(-45, 45), vy: rand(-105, -60),
+    emoji: ITEMS[Math.floor(Math.random() * ITEMS.length)],
+    size: rand(34, 52), rot: rand(-0.5, 0.5), rotV: rand(-1.6, 1.6), life: 2.3, maxLife: 2.3
+  });
+  if (combo >= 2 && b.type !== 'bad' && b.type !== 'magnet') {
+    comboEl.innerText = 'x' + combo + '!';
+    comboEl.style.opacity = '1'; comboEl.style.transform = 'translate(-50%,-50%) scale(1.25)';
+    setTimeout(function() { comboEl.style.transform = 'translate(-50%,-50%) scale(1)'; }, 90);
+    clearTimeout(comboEl._t);
+    comboEl._t = setTimeout(function() { comboEl.style.opacity = '0'; }, 700);
+  }
+}
+function dropTV() { if (tv && !tv.dropping) { tv.dropping = true; tv.vy = 30; combo = 0; } }
+function onDown(e) {
+  if (gameState !== 'playing' || !tv || tv.dropping) return;
+  dragging = true; targetX = e.touches ? e.touches[0].clientX : e.clientX;
+}
+function onMove(e) {
+  if (dragging) {
+    targetX = e.touches ? e.touches[0].clientX : e.clientX;
+    if (e.cancelable) e.preventDefault();
+  }
+}
+function onUp() { if (dragging) { dragging = false; dropTV(); } }
+cvs.addEventListener('touchstart', onDown, { passive: false });
+cvs.addEventListener('touchmove', onMove, { passive: false });
+cvs.addEventListener('touchend', onUp);
+cvs.addEventListener('mousedown', onDown);
+cvs.addEventListener('mousemove', onMove);
+cvs.addEventListener('mouseup', onUp);
+cvs.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+function selectDiff(diff) {
+  currentDiff = diff;
+  var btns = document.getElementsByClassName('diff-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.remove('active');
+    if (btns[i].getAttribute('data-diff') === diff) {
+      btns[i].classList.add('active');
+    }
+  }
+}
+function startGame() {
+  if (currentDiff === 'easy') { speedMult = 0.7; scoreMult = 1; isEndless = false; MAX_TIME = 60; }
+  else if (currentDiff === 'normal') { speedMult = 1.0; scoreMult = 2; isEndless = false; MAX_TIME = 120; }
+  else if (currentDiff === 'hard') { speedMult = 1.4; scoreMult = 3; isEndless = false; MAX_TIME = 180; }
+  else if (currentDiff === 'endless') { speedMult = 1.0; scoreMult = 2; isEndless = true; MAX_TIME = 0; }
+  gameState = 'playing';
+  score = 0; combo = 0; timePlayed = isEndless ? 0 : MAX_TIME; gameTime = 0; spawnTimer = 0.4; respawnTimer = 0;
+  magnetTime = 0;
+  balloons = []; particles = []; items = []; texts = [];
+  gameStats = { magnets: 0, golds: 0, blocks: 0, maxCombo: 0 };
+  targetX = W / 2; spawnTV();
+  scoreVal.innerText = '0';
+  timerVal.innerText = formatTime(timePlayed);
+  overlay.style.display = 'none';
+}
+function endGame() {
+  if (gameState !== 'playing') return;
+  gameState = 'gameover';
+  if (isEndless && timePlayed > bestTime) { 
+    bestTime = Math.floor(timePlayed); 
+    try { localStorage.setItem('tvdrop_best_time', bestTime); } catch(e) {}
+  }
+  if (isEndless) {
+    if (timePlayed >= 30) unlockAchievement('time_30');
+          unlockAchievement('time_60');
+      if (timePlayed >= 120) unlockAchievement('time_120');
+    } else {
+      if (timePlayed <= 0) {
+        if (currentDiff === 'easy') unlockAchievement('win_easy');
+        if (currentDiff === 'normal') unlockAchievement('win_normal');
+        if (currentDiff === 'hard') unlockAchievement('win_hard');
+      }
+    }
+    finalScoreText.innerText = score;
+    finalTimeText.innerText = isEndless ? formatTime(timePlayed) : formatTime(MAX_TIME - timePlayed);
+    menuScreen.style.display = 'none';
+    gameoverScreen.style.display = 'flex';
+    overlay.style.display = 'flex';
+  }
+
+  function restartGame() { startGame(); }
+
+  function backToMenu() {
+    gameState = 'menu';
+    menuScreen.style.display = 'flex';
+    gameoverScreen.style.display = 'none';
+    overlay.style.display = 'flex';
+  }
+
+  resize();
+  makeClouds();
+  spawnTV();
+
+  var lastTime = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    try {
+      if (!now) now = Date.now();
+      if (!lastTime) lastTime = now;
+      var dt = (now - lastTime) / 1000; 
+      lastTime = now;
+      if (dt > 0.05) dt = 0.05;
+      if (dt < 0) dt = 0;
+      update(dt); 
+      render();
+    } catch(e) {}
+  }
+  requestAnimationFrame(loop);
+
+  function update(dt) {
+    if (gameState !== 'playing') return;
+    gameTime += dt;
+    
+    if (magnetTime > 0) {
+      magnetTime -= dt;
+      if (magnetTime < 0) magnetTime = 0;
+    }
+
+    if (isEndless) {
+      timePlayed += dt;
+      timerVal.innerText = formatTime(timePlayed);
+    } else {
+      timePlayed -= dt;
+      if (timePlayed <= 0) { timePlayed = 0; timerVal.innerText = formatTime(0); endGame(); return; }
+      timerVal.innerText = formatTime(timePlayed);
+    }
+
+    if (!tv && respawnTimer > 0) { respawnTimer -= dt; if (respawnTimer <= 0) spawnTV(); }
+
+    if (tv) {
+      if (!tv.dropping) {
+        tv.x += (targetX - tv.x) * Math.min(1, dt * 45);
+        tv.x = clamp(tv.x, TV_W/2 + 6, W - TV_W/2 - 6);
+        tv.tilt *= 0.85;
+      } else {
+        tv.vy += 1900 * dt; tv.y += tv.vy * dt;
+        tv.tilt = clamp(tv.vy / 1400, 0, 0.35) * (targetX > W/2 ? -1 : 1);
+      }
+    }
+
+    var baseInterval = Math.max(0.30, 0.95 - gameTime * 0.015);
+    var timeRatio = Math.min(gameTime / 60, 1); 
+    var quantityMultiplier = 3 + (timeRatio * 2);
+    var currentInterval = baseInterval / quantityMultiplier;
+    
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnTimer = Math.max(0.08, currentInterval * rand(0.75, 1.25)); 
+      spawnBalloon();
+    }
+
+    for (var i = balloons.length - 1; i >= 0; i--) {
+      var b = balloons[i];
+      b.t += dt;
+      if (b.invuln > 0) b.invuln -= dt;
+      if (magnetTime > 0 && b.type === 'normal' && tv) {
+        var dx = tv.x - b.x;
+        var dy = tv.y - b.y;
+        var dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist > 10) {
+          var force = 1500;
+          b.x += (dx / dist) * force * dt;
+          b.y += (dy / dist) * force * dt;
+          b.baseX = b.x; 
+          b.vy = -50;
+        }
+      } else {
+        b.y += b.vy * dt; 
+        b.x = b.baseX + Math.sin(b.phase + b.t * b.swaySpeed) * b.amp;
+      }
+      
+      if (b.y < -b.r - 60) balloons.splice(i, 1);
+    }
+
+    if (tv) {
+      var rx = tv.x - TV_W/2 + 3, ry = tv.y - TV_H/2 + 3, rw = TV_W - 6, rh = TV_H - 6;
+      for (var i = balloons.length - 1; i >= 0; i--) {
+        var b = balloons[i];
+        if (b.invuln > 0) continue;
+        var nx = clamp(b.x, rx, rx + rw), ny = clamp(b.y, ry, ry + rh);
+        var dx = b.x - nx, dy = b.y - ny;
+        
+        if (dx*dx + dy*dy <= b.r * b.r) {
+          if (b.type === 'block') {
+            if (tv.dropping) tv.vy = -800;
+            combo = 0;
+            gameStats.blocks++;
+            if (gameStats.blocks >= 5) unlockAchievement('block_5');
+            b.vy = -b.vy * 1.5; 
+            balloons.splice(i, 1);
+            texts.push({ x: b.x, y: b.y, text: 'БЛОК!', life: 0.8, maxLife: 0.8, size: 20, color: '#aaa' });
+          } else {
+            balloons.splice(i, 1);
+            popBalloon(b);
+            if (gameState !== 'playing') return;
+          }
+        }
+      }
+    }
+    
+    if (tv && tv.y - TV_H/2 > H) { tv = null; combo = 0; respawnTimer = 0.32; }
+
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i];
+      p.life -= dt; if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.vy += 620 * dt; p.vx *= (1 - 1.6 * dt); p.x += p.vx * dt; p.y += p.vy * dt;
+    }
+
+    for (var i = items.length - 1; i >= 0; i--) {
+      var it = items[i];
+      it.life -= dt; if (it.life <= 0) { items.splice(i, 1); continue; }
+      it.vy += 55 * dt; it.vy *= (1 - 0.9 * dt); it.x += it.vx * dt; it.y += it.vy * dt; it.rot += it.rotV * dt;
+    }
+
+    for (var i = texts.length - 1; i >= 0; i--) {
+      var t = texts[i];
+      t.life -= dt; if (t.life <= 0) { texts.splice(i, 1); continue; }
+      t.y -= 55 * dt;
+    }
+
+    for (var i = 0; i < clouds.length; i++) {
+      var c = clouds[i];
+      c.x += c.v * dt * 0.35;
+      if (c.x - 140 * c.s > W) { c.x = -140 * c.s; c.y = rand(60, H * 0.75); }
+    }
+
+    scoreVal.innerText = score;
+  }
+
+  function roundRect(x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawBackground() {
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#3f7bff'); g.addColorStop(0.45, '#6fb4ff'); g.addColorStop(1, '#c6ecff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    var sg = ctx.createRadialGradient(W * 0.82, H * 0.12, 10, W * 0.82, H * 0.12, 170);
+    sg.addColorStop(0, 'rgba(255,246,190,.85)'); sg.addColorStop(1, 'rgba(255,246,190,0)');
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    for (var i = 0; i < clouds.length; i++) {
+      var c = clouds[i], s = c.s;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 26 * s, 0, TAU); ctx.arc(c.x + 30 * s, c.y - 10 * s, 32 * s, 0, TAU);
+      ctx.arc(c.x + 66 * s, c.y, 24 * s, 0, TAU); ctx.arc(c.x + 32 * s, c.y + 12 * s, 26 * s, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  function drawItems() {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var k = it.life / it.maxLife, alpha = k > 0.75 ? 1 : Math.max(0, k / 0.75);
+      var pop = k > 0.88 ? 1 + (1 - (1 - k) / 0.12) * 0.25 : 1;
+      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+      
+      ctx.beginPath(); ctx.arc(0, 0, it.size * 1.1, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fill();
+      ctx.font = (it.size * pop) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.fillText(it.emoji, 0, 0); ctx.restore();
+    }
+  }
+
+  function drawBalloon(b) {
+    var r = b.r;
+    var fillStr, strokeStr;
+    
+    if (b.type === 'normal') {
+      fillStr = 'hsl(' + b.hue + ', 90%, 60%)';
+      strokeStr = 'rgba(255,255,255,.7)';
+    } else if (b.type === 'bad') {
+      fillStr = '#d32f2f';
+      strokeStr = '#ff8a80';
+    } else if (b.type === 'gold') {
+      fillStr = '#ffc107';
+      strokeStr = '#fff9c4';
+    } else if (b.type === 'bomb') {
+      fillStr = '#333';
+      strokeStr = '#ff5252';
+    } else if (b.type === 'block') {
+      fillStr = 'rgba(255,255,255,0.2)';
+      strokeStr = 'rgba(255,255,255,0.8)';
+    } else if (b.type === 'magnet') {
+      fillStr = '#00b0ff';
+      strokeStr = '#80d8ff';
+    } else {
+      fillStr = 'pink'; strokeStr = 'white';
+    }
+
+    ctx.save();
+    if (b.invuln > 0) ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 100) * 0.2;
+
+    ctx.beginPath(); 
+    ctx.moveTo(b.x, b.y + r - 2); 
+    ctx.quadraticCurveTo(b.x + 10, b.y + r + 24, b.x - 5, b.y + r + 46);
+    ctx.strokeStyle = strokeStr; ctx.lineWidth = 2; ctx.stroke();
+
+    ctx.beginPath(); 
+    ctx.arc(b.x, b.y, r * 0.88, 0, TAU); 
+    ctx.fillStyle = fillStr; 
+    ctx.fill();
+    ctx.strokeStyle = strokeStr; 
+    ctx.lineWidth = 2; 
+    ctx.stroke();
+
+    ctx.beginPath(); 
+    ctx.moveTo(b.x - 4.5, b.y + r - 2); 
+    ctx.lineTo(b.x + 4.5, b.y + r - 2); 
+    ctx.lineTo(b.x, b.y + r + 6); 
+    ctx.closePath();
+    ctx.fillStyle = fillStr; 
+    ctx.fill();
+
+    ctx.beginPath(); 
+    ctx.arc(b.x - r*0.32, b.y - r*0.36, r*0.17, 0, TAU); 
+    ctx.fillStyle = 'rgba(255,255,255,.6)'; 
+    ctx.fill();
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + Math.round(r * 1.1) + 'px sans-serif';
+    if (b.type === 'bomb') ctx.fillText('💣', b.x, b.y + 2);
+    else if (b.type === 'gold') ctx.fillText('⭐', b.x, b.y + 2);
+    else if (b.type === 'block') ctx.fillText('❌', b.x, b.y + 2);
+    else if (b.type === 'magnet') ctx.fillText('🧲', b.x, b.y + 2);
+
+    ctx.restore();
+  }
+
+  function drawTV() {
+    if (!tv) return;
+    var w = TV_W, h = TV_H;
+    
+    if (magnetTime > 0) {
+      ctx.beginPath();
+      ctx.arc(tv.x, tv.y, 60 + Math.sin(Date.now() / 100) * 10, 0, TAU);
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(tv.x, tv.y, 40, 0, TAU);
+      ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
+      ctx.fill();
+    }
+
+    ctx.save(); ctx.translate(tv.x, tv.y); ctx.rotate(tv.tilt);
+
+    ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+    roundRect(-w/2, -h/2, w, h, 11);
+    var bodyG = ctx.createLinearGradient(0, -h/2, 0, h/2);
+    bodyG.addColorStop(0, '#3a4050'); bodyG.addColorStop(1, '#1c2029'); ctx.fillStyle = bodyG; ctx.fill();
+
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    roundRect(-w/2 + 7, -h/2 + 7, w - 14, h - 19, 6);
+    var sg = ctx.createLinearGradient(0, -h/2 + 7, 0, h/2 - 12);
+    sg.addColorStop(0, '#a8e9ff'); sg.addColorStop(0.5, '#5fb2f5'); sg.addColorStop(1, '#2f6fd0');
+    ctx.fillStyle = sg; ctx.fill();
+
+    ctx.save(); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(-w/2 + 2, -h/2 + 7); ctx.lineTo(-w/2 + 26, -h/2 + 7); ctx.lineTo(-w/2 + 8, h/2 - 12); ctx.lineTo(-w/2 + 2, h/2 - 12); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fill(); ctx.restore();
+
+    roundRect(-w/2 + 7, -h/2 + 7, w - 14, h - 19, 6);
+    ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1.4; ctx.stroke();
+
+    ctx.fillStyle = '#12151c';
+    roundRect(-w/2 + 13, h/2 - 7, 9, 11, 2.5); ctx.fill();
+    roundRect(w/2 - 22, h/2 - 7, 9, 11, 2.5); ctx.fill();
+
+    ctx.beginPath(); ctx.arc(w/2 - 12, h/2 - 6, 2.2, 0, TAU);
+    ctx.fillStyle = tv.dropping ? '#4dff88' : '#ff5b5b'; ctx.fill();
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      var a = p.life / p.maxLife;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + a * 0.6), 0, TAU);
+      ctx.fillStyle = 'hsl(' + p.hue + ', 95%, ' + (58 + a * 22) + '%)'; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawTexts() {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (var i = 0; i < texts.length; i++) {
+      var t = texts[i];
+      var a = t.life / t.maxLife;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.font = '900 ' + t.size + 'px system-ui, sans-serif';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,30,60,.65)'; ctx.strokeText(t.text, t.x, t.y);
+      ctx.fillStyle = t.color || '#fff6b0'; ctx.fillText(t.text, t.x, t.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render() {
+    drawBackground(); drawItems();
+    for (var i = 0; i < balloons.length; i++) drawBalloon(balloons[i]);
+    drawParticles(); drawTV(); drawTexts();
+  }
+</script>
+</body>
+</html>
